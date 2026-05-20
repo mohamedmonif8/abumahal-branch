@@ -100,15 +100,18 @@ function App() {
     } catch (error) { showToast("خطأ في الاتصال بالخادم"); }
   };
 
+  // 🚀 تم تصحيح الرابط هنا بإضافة /status ليتطابق مع الباك إند
   const updateOrderStatus = (id, status) => {
     if (!id) return showToast("خطأ: معرف الطلب غير موجود!");
 
+    // تحديث الشاشة فوراً
     setOrders(prevOrders => prevOrders.map(o => 
-      (o._id === id || o.id === id) ? { ...o, status: status } : o
+      (o.id === id) ? { ...o, status: status } : o
     ));
     showToast(`تم تحديث الطلب إلى: ${status}`);
 
-    fetch(`${API_URL}/api/orders/${id}`, {
+    // إرسال التحديث للخادم
+    fetch(`${API_URL}/api/orders/${id}/status`, {
       method: 'PUT', 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status })
@@ -119,7 +122,7 @@ function App() {
     })
     .catch(err => {
       console.error("Network error:", err);
-      fetchData();
+      fetchData(); // التراجع في حال الفشل
     });
   };
 
@@ -127,7 +130,7 @@ function App() {
     if (!id) return showToast("خطأ: معرف المنتج غير موجود!");
 
     setProducts(prev => prev.map(p => 
-      (p._id === id || p.id === id) ? { ...p, isAvailable } : p
+      (p.id === id) ? { ...p, isAvailable } : p
     ));
     showToast(isAvailable ? 'المنتج متاح الآن ✅' : 'تم إيقاف المنتج ❌');
 
@@ -148,7 +151,7 @@ function App() {
 
   const printOrder = (order) => {
     const items = parseItems(order.items);
-    const orderId = order._id || order.id;
+    const orderId = order.id;
     const printWindow = window.open('', '_blank', 'width=400,height=600');
     const html = `
       <html dir="rtl">
@@ -245,7 +248,7 @@ function App() {
             ) : (
               filteredOrders.map((order) => {
                 const items = parseItems(order.items);
-                const orderId = order._id || order.id; 
+                const orderId = order.id; 
                 const isPending = order.status === 'قيد الانتظار' || order.status === 'غير مدفوع';
                 const isPreparing = order.status === 'جاري التجهيز' || order.status === 'قيد التجهيز';
                 const isReady = order.status === 'جاهز';
@@ -254,7 +257,7 @@ function App() {
                   <div key={orderId} style={{ backgroundColor: theme.card, padding: '20px', borderRadius: '12px', borderTop: `5px solid ${isReady ? theme.success : isPreparing ? theme.warning : theme.primary}`, borderLeft: `1px solid ${theme.border}`, borderRight: `1px solid ${theme.border}`, borderBottom: `1px solid ${theme.border}`, display: 'flex', flexDirection: 'column' }}>
                     
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                      <h3 style={{ margin: 0, fontSize: '22px' }}>#{orderId.toString().slice(-4)}</h3>
+                      <h3 style={{ margin: 0, fontSize: '22px' }}>#{orderId}</h3>
                       <span style={{ padding: '5px 12px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', backgroundColor: isReady ? theme.success : isPreparing ? theme.warning : theme.primary, color: 'white' }}>
                         {order.status}
                       </span>
@@ -298,7 +301,7 @@ function App() {
           
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '15px' }}>
             {products.map(p => {
-              const productId = p._id || p.id; 
+              const productId = p.id; 
               return (
                 <div key={productId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: theme.bg, padding: '15px 20px', borderRadius: '8px', borderRight: `4px solid ${p.isAvailable ? theme.success : theme.gray}` }}>
                   <span style={{ color: p.isAvailable ? 'white' : theme.gray, textDecoration: p.isAvailable ? 'none' : 'line-through', fontSize: '16px', fontWeight: 'bold' }}>{p.name}</span>
