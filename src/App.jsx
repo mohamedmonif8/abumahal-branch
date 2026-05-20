@@ -100,49 +100,60 @@ function App() {
     } catch (error) { showToast("خطأ في الاتصال بالخادم"); }
   };
 
-  // 🚀 تحديث فوري وسلس للطلبات (بدون رسائل خطأ مزعجة)
   const updateOrderStatus = (id, status) => {
-    // 1. تحديث الشاشة فوراً لكي يشعر الموظف بسرعة الاستجابة
+    if (!id) return showToast("خطأ: معرف الطلب غير موجود!");
+
     setOrders(prevOrders => prevOrders.map(o => 
-      (o.id === id) ? { ...o, status: status } : o
+      (o._id === id || o.id === id) ? { ...o, status: status } : o
     ));
     showToast(`تم تحديث الطلب إلى: ${status}`);
 
-    // 2. إرسال التحديث للخادم في الخلفية بصمت
     fetch(`${API_URL}/api/orders/${id}`, {
       method: 'PUT', 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status })
     })
-    .then(() => fetchData()) // مزامنة البيانات بعد نجاح الإرسال
-    .catch(err => console.error("Network error:", err));
+    .then(res => {
+      if (!res.ok) throw new Error("Server Error");
+      fetchData();
+    })
+    .catch(err => {
+      console.error("Network error:", err);
+      fetchData();
+    });
   };
 
-  // 🚀 تحديث فوري وسلس للمنتجات
   const toggleProduct = (id, isAvailable) => {
-    // 1. تحديث الشاشة فوراً
+    if (!id) return showToast("خطأ: معرف المنتج غير موجود!");
+
     setProducts(prev => prev.map(p => 
-      (p.id === id) ? { ...p, isAvailable } : p
+      (p._id === id || p.id === id) ? { ...p, isAvailable } : p
     ));
     showToast(isAvailable ? 'المنتج متاح الآن ✅' : 'تم إيقاف المنتج ❌');
 
-    // 2. إرسال التحديث للخادم بصمت
     fetch(`${API_URL}/api/products/${id}/toggle`, {
       method: 'PUT', 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ isAvailable })
     })
-    .then(() => fetchData())
-    .catch(err => console.error("Network error:", err));
+    .then(res => {
+      if (!res.ok) throw new Error("Server Error");
+      fetchData();
+    })
+    .catch(err => {
+      console.error("Network error:", err);
+      fetchData();
+    });
   };
 
   const printOrder = (order) => {
     const items = parseItems(order.items);
+    const orderId = order._id || order.id;
     const printWindow = window.open('', '_blank', 'width=400,height=600');
     const html = `
       <html dir="rtl">
         <head>
-          <title>فاتورة طلب #${order.id}</title>
+          <title>فاتورة طلب #${orderId}</title>
           <style>
             body { font-family: 'Tahoma', sans-serif; text-align: center; padding: 20px; color: #000; }
             h2 { margin: 0 0 5px 0; }
@@ -154,7 +165,7 @@ function App() {
           <h2>مطعم أبو مهل</h2>
           <p>فرع ${order.branch}</p>
           <div class="divider"></div>
-          <h3>رقم الطلب: #${order.id}</h3>
+          <h3>رقم الطلب: #${orderId}</h3>
           <p>العميل: ${order.customerName}</p>
           <p>الوقت: ${new Date().toLocaleTimeString('ar-SA')}</p>
           <div class="divider"></div>
@@ -234,15 +245,16 @@ function App() {
             ) : (
               filteredOrders.map((order) => {
                 const items = parseItems(order.items);
+                const orderId = order._id || order.id; 
                 const isPending = order.status === 'قيد الانتظار' || order.status === 'غير مدفوع';
                 const isPreparing = order.status === 'جاري التجهيز' || order.status === 'قيد التجهيز';
                 const isReady = order.status === 'جاهز';
 
                 return (
-                  <div key={order.id} style={{ backgroundColor: theme.card, padding: '20px', borderRadius: '12px', borderTop: `5px solid ${isReady ? theme.success : isPreparing ? theme.warning : theme.primary}`, borderLeft: `1px solid ${theme.border}`, borderRight: `1px solid ${theme.border}`, borderBottom: `1px solid ${theme.border}`, display: 'flex', flexDirection: 'column' }}>
+                  <div key={orderId} style={{ backgroundColor: theme.card, padding: '20px', borderRadius: '12px', borderTop: `5px solid ${isReady ? theme.success : isPreparing ? theme.warning : theme.primary}`, borderLeft: `1px solid ${theme.border}`, borderRight: `1px solid ${theme.border}`, borderBottom: `1px solid ${theme.border}`, display: 'flex', flexDirection: 'column' }}>
                     
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                      <h3 style={{ margin: 0, fontSize: '22px' }}>#{order.id}</h3>
+                      <h3 style={{ margin: 0, fontSize: '22px' }}>#{orderId.toString().slice(-4)}</h3>
                       <span style={{ padding: '5px 12px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', backgroundColor: isReady ? theme.success : isPreparing ? theme.warning : theme.primary, color: 'white' }}>
                         {order.status}
                       </span>
@@ -262,9 +274,9 @@ function App() {
                     </div>
                     
                     <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                      {isPending && <button onClick={() => updateOrderStatus(order.id, 'جاري التجهيز')} style={{ padding: '12px', border: 'none', borderRadius: '6px', cursor: 'pointer', flex: 1, backgroundColor: theme.warning, color: 'white', fontWeight: 'bold', fontSize: '15px' }}>بدء التجهيز 🍳</button>}
-                      {isPreparing && <button onClick={() => updateOrderStatus(order.id, 'جاهز')} style={{ padding: '12px', border: 'none', borderRadius: '6px', cursor: 'pointer', flex: 1, backgroundColor: theme.success, color: 'white', fontWeight: 'bold', fontSize: '15px' }}>الطلب جاهز ✅</button>}
-                      {isReady && <button onClick={() => updateOrderStatus(order.id, 'مكتمل')} style={{ padding: '12px', border: 'none', borderRadius: '6px', cursor: 'pointer', flex: 1, backgroundColor: theme.info, color: 'white', fontWeight: 'bold', fontSize: '15px' }}>تم التسليم 📦</button>}
+                      {isPending && <button onClick={() => updateOrderStatus(orderId, 'جاري التجهيز')} style={{ padding: '12px', border: 'none', borderRadius: '6px', cursor: 'pointer', flex: 1, backgroundColor: theme.warning, color: 'white', fontWeight: 'bold', fontSize: '15px' }}>بدء التجهيز 🍳</button>}
+                      {isPreparing && <button onClick={() => updateOrderStatus(orderId, 'جاهز')} style={{ padding: '12px', border: 'none', borderRadius: '6px', cursor: 'pointer', flex: 1, backgroundColor: theme.success, color: 'white', fontWeight: 'bold', fontSize: '15px' }}>الطلب جاهز ✅</button>}
+                      {isReady && <button onClick={() => updateOrderStatus(orderId, 'مكتمل')} style={{ padding: '12px', border: 'none', borderRadius: '6px', cursor: 'pointer', flex: 1, backgroundColor: theme.info, color: 'white', fontWeight: 'bold', fontSize: '15px' }}>تم التسليم 📦</button>}
                       
                       <button onClick={() => printOrder(order)} style={{ padding: '12px', border: `1px solid ${theme.border}`, borderRadius: '6px', cursor: 'pointer', backgroundColor: 'transparent', color: 'white', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         🖨️ طباعة
@@ -285,15 +297,18 @@ function App() {
           </div>
           
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '15px' }}>
-            {products.map(p => (
-              <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: theme.bg, padding: '15px 20px', borderRadius: '8px', borderRight: `4px solid ${p.isAvailable ? theme.success : theme.gray}` }}>
-                <span style={{ color: p.isAvailable ? 'white' : theme.gray, textDecoration: p.isAvailable ? 'none' : 'line-through', fontSize: '16px', fontWeight: 'bold' }}>{p.name}</span>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button onClick={() => toggleProduct(p.id, true)} disabled={p.isAvailable} style={{ padding: '8px 15px', border: 'none', borderRadius: '6px', cursor: p.isAvailable ? 'not-allowed' : 'pointer', backgroundColor: p.isAvailable ? theme.border : theme.success, color: 'white', fontWeight: 'bold' }}>متوفر</button>
-                  <button onClick={() => toggleProduct(p.id, false)} disabled={!p.isAvailable} style={{ padding: '8px 15px', border: 'none', borderRadius: '6px', cursor: !p.isAvailable ? 'not-allowed' : 'pointer', backgroundColor: !p.isAvailable ? theme.border : theme.primary, color: 'white', fontWeight: 'bold' }}>نفد</button>
+            {products.map(p => {
+              const productId = p._id || p.id; 
+              return (
+                <div key={productId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: theme.bg, padding: '15px 20px', borderRadius: '8px', borderRight: `4px solid ${p.isAvailable ? theme.success : theme.gray}` }}>
+                  <span style={{ color: p.isAvailable ? 'white' : theme.gray, textDecoration: p.isAvailable ? 'none' : 'line-through', fontSize: '16px', fontWeight: 'bold' }}>{p.name}</span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={() => toggleProduct(productId, true)} disabled={p.isAvailable} style={{ padding: '8px 15px', border: 'none', borderRadius: '6px', cursor: p.isAvailable ? 'not-allowed' : 'pointer', backgroundColor: p.isAvailable ? theme.border : theme.success, color: 'white', fontWeight: 'bold' }}>متوفر</button>
+                    <button onClick={() => toggleProduct(productId, false)} disabled={!p.isAvailable} style={{ padding: '8px 15px', border: 'none', borderRadius: '6px', cursor: !p.isAvailable ? 'not-allowed' : 'pointer', backgroundColor: !p.isAvailable ? theme.border : theme.primary, color: 'white', fontWeight: 'bold' }}>نفد</button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
